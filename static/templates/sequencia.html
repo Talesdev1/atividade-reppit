@@ -6,7 +6,34 @@
         <div class="acordes-container" ng-repeat='sequencia in Sequencia.sequenciasFamosas' ng-click="Sequencia.pesquisarPorSequencia(sequencia)">
           <df-hex acorde="{{acordeon.acorde}}" acorde-color="{{acordeon.cor}}" acorde-checked="Sequencia.temAcorde(acordeon)" ng-repeat="acordeon in sequencia.acordes"></df-hex>
         </div>
+        <p class="text-muted" ng-if="!Sequencia.sequenciasFamosas.length">Carregando sequências...</p>
         <br style="clear: both;">
+
+        <h4 class="text-center">Cadastre uma sequencia nova</h4>
+        <div class="row">
+          <div class="col-xs-8">
+            <input type="text" class="form-control form-control-solto" maxlength="12"
+                   placeholder="Acorde (ex.: Am, C7M, F#/Bb)"
+                   ng-model="Sequencia.acordeInput"
+                   ng-keypress="Sequencia.adicionarAcordeTecla($event)">
+          </div>
+          <div class="col-xs-4">
+            <button type="button" class="btn btn-default" ng-click="Sequencia.adicionarAcorde()">Adicionar</button>
+          </div>
+        </div>
+        <div class="acordes-container" ng-repeat="acordeon in Sequencia.novaSequencia.acordes" ng-click="Sequencia.removerAcorde($index)">
+          <df-hex acorde="{{acordeon.acorde}}" acorde-color="{{acordeon.cor}}"></df-hex>
+        </div>
+        <br style="clear: both;">
+        <button type="button" class="btn btn-primary" ng-click="Sequencia.cadastrarSequencia()"
+                ng-disabled="Sequencia.cadastrando || Sequencia.novaSequencia.acordes.length < 2">
+          {{ Sequencia.cadastrando ? 'Cadastrando...' : 'Cadastrar e buscar' }}
+        </button>
+        <p class="text-danger" ng-if="Sequencia.mensagemCadastro">{{Sequencia.mensagemCadastro}}</p>
+        <p class="text-muted">
+          <small>Clique nos acordes acima para remover. A sequência fica salva no catálogo.</small>
+        </p>
+
         <button class="search-results-count" ng-if="Sequencia.showSearchResultsCount" ng-click="Sequencia.goToResults()">
           <span class="glyphicon glyphicon-triangle-bottom bounce animated infinite"></span>
           <br>
@@ -16,7 +43,7 @@
     </div>
     <div id="results" class="col-sm-6 col-md-8 viewWindow-panel viewWindow-panel-D">
       <div class="viewWindow-panel-container">
-        <div ng-show="Sequencia.minhaSequencia.acordes.length">
+        <div ng-show="Sequencia.minhaSequencia.acordes && Sequencia.minhaSequencia.acordes.length">
           <h4>{{Sequencia.esfigeSpeech}}</h4>
           <div class="row">
             <div class="col-md-3">

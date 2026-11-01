@@ -5,6 +5,7 @@ import sys
 from musica import *
 from collections import OrderedDict
 import unicodedata
+import persistencia
 
 app = Flask(__name__)
 
@@ -22,6 +23,13 @@ def limpa_cifra(raw_cifra):
                 cifra += tokens
     return cifra
 
+def contem_subsequencia(cifra, seq):
+    """True se `seq` aparece como subsequência contígua de `cifra`."""
+    n = len(seq)
+    if n == 0 or n > len(cifra):
+        return False
+    return any(cifra[i:i + n] == seq for i in range(len(cifra) - n + 1))
+
 # colunas do csv
 ARTISTA_ID = 0
 MUSICA_ID = 1
@@ -37,12 +45,6 @@ TAM_PAGINA = 100
 genero_musicas = {}
 generos = set()
 acordes = set()
-sequencias = {'BmGDA' : 0,
-        'CGAmF' : 1,
-        'EmG' : 2,
-        'CA7DmG7' : 3,
-        'GmF' : 4,
-        'CC7FFm' : 5}
 
 musicas_dict = {}
 
@@ -96,6 +98,26 @@ for k,v in genero_musicas.items():
     genero_musicas[k].sort(key = lambda x : x.popularidade, reverse = True)
 
 f.close()
+
+# catálogo de sequências: SQLite persistente; músicas/gêneros continuam no CSV.
+def _matches_das_seeds():
+    """Snapshot da tag SEQ_FAMOSA, usado apenas na primeira carga das seeds."""
+    return {
+        seq_id: [m.id_unico_musica for m in musicas.values()
+                 if str(seq_id) in m.seqs_famosas]
+        for seq_id, _ in persistencia.SEQUENCIAS_SEED
+    }
+
+try:
+    persistencia.init_db()
+    _seed = persistencia.seed_catalog(_matches_das_seeds())
+    app.logger.info(
+        'banco de sequências em %s (seeds novas=%d, matches semeados=%d)',
+        persistencia.caminho_db(), _seed['seeds'], _seed['matches'])
+except Exception as exc:
+    raise RuntimeError(
+        'Não foi possível abrir/criar o banco de sequências em %s: %s'
+        % (persistencia.caminho_db(), exc))
 
 
 @app.route('/')
@@ -188,25 +210,54 @@ def get_similares():
         musica = musicas[id_musica_tag]
         acordes = musica.acordes
     elif sequencia_tag:
-        acordes = sequencia_tag.replace(',','')
+        acordes = persistencia.parsear_sequencia(sequencia_tag)
+        assinatura = persistencia.assinatura_de(acordes)
+        seq_id = persistencia.buscar_por_assinatura(assinatura)
         similares = []
-
-        if acordes in sequencias:
-            id_seq = sequencias[acordes]
-            similares = get_pagina(get_similares_por_sequencia(id_seq, generos_key), pagina_tag)
-        return json.dumps(similares)
+        if seq_id is not None:
+            similares = get_similares_por_sequencia(seq_id, generos_key)
+        return json.dumps(get_pagina(similares, pagina_tag))
 
     similares = get_similares(acordes, generos_key, id_musica_tag)
 
     return json.dumps(get_pagina(similares, pagina_tag))
 
-def get_similares_por_sequencia(id_seq, generos_key):
-    # filtra para melhor desempenho
+@app.route('/sequencias', methods=['GET', 'POST'])
+def sequencias_endpoint():
+    """Catálogo aberto e anônimo de sequências de acordes."""
+    if request.method == 'GET':
+        return json.dumps(persistencia.listar_sequencias())
+
+    corpo = request.get_json(silent=True)
+    if not isinstance(corpo, dict):
+        return json.dumps({'erro': 'corpo deve ser um JSON com o campo "acordes"'}), 400
+
+    try:
+        acordes = persistencia.normalizar_acordes(corpo.get('acordes'))
+    except persistencia.ErroDeValidacao as exc:
+        return json.dumps({'erro': str(exc)}), 400
+
+    # os matches são calculados uma única vez, no cadastro (write-time)
+    matches = [m.id_unico_musica for m in musicas.values()
+               if contem_subsequencia(m.cifra, acordes)]
+
+    try:
+        sequencia = persistencia.criar_sequencia(acordes, matches)
+    except persistencia.SequenciaDuplicada as exc:
+        return json.dumps({'erro': 'sequência já cadastrada', 'id': exc.seq_id}), 409
+    except persistencia.CatalogoCheio:
+        return json.dumps({'erro': 'catálogo de sequências cheio'}), 429
+
+    return json.dumps(sequencia), 201
+
+def get_similares_por_sequencia(seq_id, generos_key):
+    # filtro de gênero primeiro, como antes, para preservar ordem/paginação
     collection = apply_filtro(musicas.values(), generos_key)
+    casadas = persistencia.matches_de(seq_id)
 
     similares = []
     for musica in collection:
-        if str(id_seq) in musica.seqs_famosas:
+        if musica.id_unico_musica in casadas:
             similar = {
                 'id_unico_musica' : musica.id_unico_musica,
                 'id_artista' : musica.id_artista,

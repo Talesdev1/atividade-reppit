@@ -380,6 +380,58 @@ a:active {
 .form-group > .form-control-inverse {
   border: solid 2px #333;
 }
+/* Input de texto solto sobre painel colorido (cadastro de sequência, painel C).
+   Não depende de .form-group: sem estas regras o Bootstrap pinta o fundo de
+   branco e o .form-control acima pinta o texto de branco. */
+.form-control-solto {
+  background-color: transparent;
+  border: solid 2px #FFF;
+  border-radius: 4px;
+  padding: 10px 5px;
+  color: #FFF;
+  box-shadow: none;
+}
+/* Um seletor inválido invalida a lista inteira: cada prefixo em regra própria. */
+.form-control-solto::-webkit-input-placeholder {
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 1;
+}
+.form-control-solto::-moz-placeholder {
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 1;
+}
+.form-control-solto:-ms-input-placeholder {
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 1;
+}
+.form-control-solto::placeholder {
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 1;
+}
+.form-control-solto:focus {
+  background-color: rgba(255, 255, 255, 0.16);
+  border-color: #FFF;
+  color: #FFF;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+/* Autofill do Chrome/Safari pinta o fundo por conta própria e força
+   -webkit-text-fill-color: com texto branco, ficaria invisível. */
+.form-control-solto:-webkit-autofill,
+.form-control-solto:-webkit-autofill:hover,
+.form-control-solto:-webkit-autofill:focus {
+  -webkit-text-fill-color: #FFF;
+  color: #FFF;
+  caret-color: #FFF;
+  -webkit-box-shadow: 0 0 0 1000px #BA007C inset;
+  box-shadow: 0 0 0 1000px #BA007C inset;
+}
+.form-control-solto:-webkit-autofill::first-line {
+  color: #FFF;
+}
+.form-control-solto:autofill {
+  background-color: #BA007C;
+  color: #FFF;
+}
 .form-group-btn > .btn-default {
   color: #FFF;
 }

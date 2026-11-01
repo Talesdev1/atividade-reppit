@@ -1,0 +1,4 @@
+# Dependências de desenvolvimento/teste. Não entram na imagem Docker.
+# Rodar a suíte com PYTHONHASHSEED=0 (ver docs/features/sequencias-customizadas/04-test-report.md):
+#   PYTHONHASHSEED=0 python -m pytest
+pytest>=8,<10
